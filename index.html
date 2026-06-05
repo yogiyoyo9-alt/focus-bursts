@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Focus Bursts</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d29;
+    --accent: #6c8cff;
+    --accent-soft: #6c8cff33;
+    --text: #e6e8ef;
+    --muted: #8b90a3;
+    --good: #57d39b;
+    --ring-bg: #2a2e3d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(1200px 600px at 50% -10%, #1c2030, var(--bg));
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 64px;
+  }
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+  h1 span { color: var(--accent); }
+  .tagline { color: var(--muted); font-size: 0.9rem; margin-bottom: 28px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid #ffffff0d;
+    border-radius: 20px;
+    padding: 28px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 20px 50px -20px #000a;
+  }
+
+  .task-input {
+    width: 100%;
+    background: #11141d;
+    border: 1px solid #ffffff14;
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 1rem;
+    margin-bottom: 18px;
+    transition: border-color .15s;
+  }
+  .task-input:focus { outline: none; border-color: var(--accent); }
+  .task-input::placeholder { color: var(--muted); }
+
+  .lengths { display: flex; gap: 8px; margin-bottom: 24px; }
+  .len-btn {
+    flex: 1;
+    background: #11141d;
+    border: 1px solid #ffffff14;
+    color: var(--muted);
+    border-radius: 10px;
+    padding: 9px 0;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .len-btn:hover { border-color: var(--accent); color: var(--text); }
+  .len-btn.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .ring-wrap { display: flex; justify-content: center; margin-bottom: 24px; position: relative; }
+  svg { transform: rotate(-90deg); }
+  .ring-bg { stroke: var(--ring-bg); }
+  .ring-fg { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset .3s linear; }
+  .time-label {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .time { font-size: 2.6rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .time-sub { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+
+  .controls { display: flex; gap: 10px; }
+  .btn {
+    flex: 1;
+    border: none;
+    border-radius: 12px;
+    padding: 13px 0;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .1s, opacity .15s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost { background: #ffffff10; color: var(--text); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .stats {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    max-width: 420px;
+    margin-top: 18px;
+  }
+  .stat {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid #ffffff0d;
+    border-radius: 14px;
+    padding: 14px;
+    text-align: center;
+  }
+  .stat .num { font-size: 1.5rem; font-weight: 700; color: var(--good); }
+  .stat .lbl { font-size: 0.72rem; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .log {
+    width: 100%;
+    max-width: 420px;
+    margin-top: 24px;
+  }
+  .log-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px; padding: 0 4px;
+  }
+  .log-head h2 { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .clear-btn { background: none; border: none; color: var(--muted); font-size: 0.78rem; cursor: pointer; }
+  .clear-btn:hover { color: var(--accent); }
+  .log-item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card);
+    border: 1px solid #ffffff0d;
+    border-radius: 12px;
+    padding: 11px 14px;
+    margin-bottom: 8px;
+    animation: slidein .25s ease;
+  }
+  @keyframes slidein { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  .log-item .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); flex-shrink: 0; }
+  .log-item .what { flex: 1; font-size: 0.92rem; }
+  .log-item .meta { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+  .empty { color: var(--muted); font-size: 0.88rem; text-align: center; padding: 18px; }
+</style>
+</head>
+<body>
+  <h1>Focus <span>Bursts</span></h1>
+  <div class="tagline">One task. One burst. Repeat.</div>
+
+  <div class="card">
+    <input id="task" class="task-input" placeholder="What are you focusing on?" maxlength="80" />
+
+    <div class="lengths" id="lengths">
+      <button class="len-btn" data-min="15">15 min</button>
+      <button class="len-btn active" data-min="25">25 min</button>
+      <button class="len-btn" data-min="45">45 min</button>
+      <button class="len-btn" data-min="5">5 min</button>
+    </div>
+
+    <div class="ring-wrap">
+      <svg width="200" height="200">
+        <circle class="ring-bg" cx="100" cy="100" r="88" fill="none" stroke-width="12"/>
+        <circle id="ring" class="ring-fg" cx="100" cy="100" r="88" fill="none" stroke-width="12"/>
+      </svg>
+      <div class="time-label">
+        <div class="time" id="time">25:00</div>
+        <div class="time-sub" id="sub">ready</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="startBtn" class="btn btn-primary">Start</button>
+      <button id="resetBtn" class="btn btn-ghost">Reset</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="num" id="todayCount">0</div><div class="lbl">Bursts today</div></div>
+    <div class="stat"><div class="num" id="todayMins">0</div><div class="lbl">Minutes focused</div></div>
+    <div class="stat"><div class="num" id="streak">0</div><div class="lbl">In a row</div></div>
+  </div>
+
+  <div class="log">
+    <div class="log-head">
+      <h2>Today's bursts</h2>
+      <button class="clear-btn" id="clearBtn">clear</button>
+    </div>
+    <div id="logList"></div>
+  </div>
+
+<script>
+const RADIUS = 88;
+const CIRC = 2 * Math.PI * RADIUS;
+const ring = document.getElementById('ring');
+ring.style.strokeDasharray = CIRC;
+ring.style.strokeDashoffset = 0;
+
+let selectedMin = 25;
+let remaining = selectedMin * 60;
+let total = remaining;
+let timer = null;
+let running = false;
+
+const $ = id => document.getElementById(id);
+const todayKey = () => 'fb-' + new Date().toISOString().slice(0, 10);
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(todayKey())) || []; }
+  catch { return []; }
+}
+function save(list) { localStorage.setItem(todayKey(), JSON.stringify(list)); }
+
+function fmt(s) {
+  const m = Math.floor(s / 60), sec = s % 60;
+  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+function render() {
+  $('time').textContent = fmt(remaining);
+  const pct = total ? remaining / total : 0;
+  ring.style.strokeDashoffset = CIRC * (1 - pct);
+}
+
+function renderStats() {
+  const list = load();
+  $('todayCount').textContent = list.length;
+  $('todayMins').textContent = list.reduce((a, b) => a + b.min, 0);
+  $('streak').textContent = list.length; // simple: bursts completed today
+
+  const logList = $('logList');
+  if (!list.length) {
+    logList.innerHTML = '<div class="empty">No bursts yet — start your first one above.</div>';
+    return;
+  }
+  logList.innerHTML = list.slice().reverse().map(it => `
+    <div class="log-item">
+      <div class="dot"></div>
+      <div class="what">${escapeHtml(it.task)}</div>
+      <div class="meta">${it.min}m · ${it.time}</div>
+    </div>`).join('');
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function setLength(min) {
+  if (running) return;
+  selectedMin = min;
+  remaining = total = min * 60;
+  document.querySelectorAll('.len-btn').forEach(b =>
+    b.classList.toggle('active', +b.dataset.min === min));
+  render();
+}
+
+function tick() {
+  remaining--;
+  render();
+  if (remaining <= 0) complete();
+}
+
+function start() {
+  if (running) { pause(); return; }
+  running = true;
+  $('startBtn').textContent = 'Pause';
+  $('sub').textContent = 'focusing…';
+  timer = setInterval(tick, 1000);
+}
+
+function pause() {
+  running = false;
+  clearInterval(timer);
+  $('startBtn').textContent = 'Resume';
+  $('sub').textContent = 'paused';
+}
+
+function reset() {
+  running = false;
+  clearInterval(timer);
+  remaining = total = selectedMin * 60;
+  $('startBtn').textContent = 'Start';
+  $('sub').textContent = 'ready';
+  render();
+}
+
+function complete() {
+  running = false;
+  clearInterval(timer);
+  ding();
+  const task = $('task').value.trim() || 'Focus session';
+  const list = load();
+  list.push({
+    task,
+    min: selectedMin,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  });
+  save(list);
+  renderStats();
+  $('startBtn').textContent = 'Start';
+  $('sub').textContent = '✓ done!';
+  remaining = total = selectedMin * 60;
+  render();
+  flashTitle();
+}
+
+let titleTimer;
+function flashTitle() {
+  let on = true, n = 0;
+  clearInterval(titleTimer);
+  titleTimer = setInterval(() => {
+    document.title = on ? '✅ Burst complete!' : 'Focus Bursts';
+    on = !on;
+    if (++n > 6) { clearInterval(titleTimer); document.title = 'Focus Bursts'; }
+  }, 500);
+}
+
+// Pleasant two-note chime via Web Audio (no files needed)
+function ding() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [880, 1318.5].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      osc.connect(gain); gain.connect(ctx.destination);
+      const t = ctx.currentTime + i * 0.18;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.3, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      osc.start(t); osc.stop(t + 0.5);
+    });
+  } catch (e) { /* audio not available — silent */ }
+}
+
+// Wire up
+$('lengths').addEventListener('click', e => {
+  if (e.target.classList.contains('len-btn')) setLength(+e.target.dataset.min);
+});
+$('startBtn').addEventListener('click', start);
+$('resetBtn').addEventListener('click', reset);
+$('clearBtn').addEventListener('click', () => {
+  if (confirm('Clear today\'s burst log?')) { save([]); renderStats(); }
+});
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && e.target.tagName !== 'INPUT') { e.preventDefault(); start(); }
+});
+
+render();
+renderStats();
+</script>
+</body>
+</html>
