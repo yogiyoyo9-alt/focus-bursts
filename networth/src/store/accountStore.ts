@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { v4 as uuidv4 } from 'uuid';
+import { genId } from '@/utils/id';
 import type { Account, InstitutionId, AssetCategory, EncryptedCredentialPayload } from '@/types/account';
 import * as accountRepo from '@/db/accountRepo';
 import { saveCredentials, deleteCredentials } from '@/security/credentialStore';
@@ -40,7 +40,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
   },
 
   addAccount: async (params, credentials) => {
-    const id = uuidv4();
+    const id = genId();
     const credentialKey = `cred_${id}`;
     const account: Account = {
       id,

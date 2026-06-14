@@ -34,12 +34,6 @@
           "faceIDPermission": "Used to protect your financial data"
         }
       ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/icon.png"
-        }
-      ],
       "expo-sqlite"
     ],
     "experiments": {

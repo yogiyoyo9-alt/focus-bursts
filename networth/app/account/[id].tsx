@@ -14,7 +14,7 @@ import { useAccountStore } from '@/store/accountStore';
 import { INSTITUTIONS } from '@/constants/institutions';
 import { formatCurrency, formatCurrencyFull, formatRelativeTime } from '@/utils/format';
 import { Card } from '@/components/common/Card';
-import { v4 as uuidv4 } from 'uuid';
+import { genId } from '@/utils/id';
 import { usePortfolioStore } from '@/store/portfolioStore';
 import * as snapshotRepo from '@/db/snapshotRepo';
 
@@ -53,7 +53,7 @@ export default function AccountDetailScreen() {
     setSavingManual(true);
     try {
       const now = new Date().toISOString();
-      const snapshotGroupId = uuidv4();
+      const snapshotGroupId = genId();
       await snapshotRepo.insertPortfolioSnapshot(
         {
           id: snapshotGroupId,
@@ -65,7 +65,7 @@ export default function AccountDetailScreen() {
         },
         [
           {
-            id: uuidv4(),
+            id: genId(),
             accountId: account.id,
             snapshotGroupId,
             capturedAt: now,

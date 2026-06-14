@@ -7,7 +7,7 @@ import { usePortfolioStore } from '@/store/portfolioStore';
 import { ScrapingWebView } from '@/components/scraping/ScrapingWebView';
 import type { ScrapingResult } from '@/types/scraping';
 import type { AssetBreakdown } from '@/types/portfolio';
-import { v4 as uuidv4 } from 'uuid';
+import { genId } from '@/utils/id';
 import * as snapshotRepo from '@/db/snapshotRepo';
 
 export default function ScrapeScreen() {
@@ -31,7 +31,7 @@ export default function ScrapeScreen() {
       }
 
       if (result.success && result.valueInr != null) {
-        const groupId = uuidv4();
+        const groupId = genId();
         const otherLatestValues = accounts
           .filter((a) => a.id !== result.accountId && a.lastValue != null)
           .reduce<number>((sum, a) => sum + (a.lastValue ?? 0), 0);
@@ -59,7 +59,7 @@ export default function ScrapeScreen() {
           },
           [
             {
-              id: uuidv4(),
+              id: genId(),
               accountId: result.accountId,
               snapshotGroupId: groupId,
               capturedAt: now,
