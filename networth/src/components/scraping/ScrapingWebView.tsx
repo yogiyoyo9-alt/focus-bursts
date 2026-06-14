@@ -44,24 +44,34 @@ export function ScrapingWebView({ account, onComplete, onPhaseChange }: Scraping
   );
 
   const handleLoadEnd = useCallback(async () => {
-    if (credentialsInjected.current) return;
-    credentialsInjected.current = true;
-    updatePhase('filling_credentials');
-    const creds = await loadCredentials(account.id);
-    if (!creds) {
-      finish({
-        accountId: account.id,
-        institutionId: account.institutionId,
-        success: false,
-        valueInr: null,
-        rawData: null,
-        error: 'Credentials not found',
-        scrapedAt: new Date().toISOString(),
-      });
+    if (completed.current) return;
+
+    // First page load: inject credentials.
+    if (!credentialsInjected.current) {
+      credentialsInjected.current = true;
+      updatePhase('filling_credentials');
+      const creds = await loadCredentials(account.id);
+      if (!creds) {
+        finish({
+          accountId: account.id,
+          institutionId: account.institutionId,
+          success: false,
+          valueInr: null,
+          rawData: null,
+          error: 'Credentials not found',
+          scrapedAt: new Date().toISOString(),
+        });
+        return;
+      }
+      const script = injector.buildCredentialInjector(creds.fields);
+      webViewRef.current?.injectJavaScript(script);
       return;
     }
-    const script = injector.buildCredentialInjector(creds.fields);
-    webViewRef.current?.injectJavaScript(script);
+
+    // Subsequent page loads (after the user completes login/OTP): start the
+    // data-extraction poller. It watches the page until the balance appears,
+    // which doubles as login detection and survives SPA navigation.
+    webViewRef.current?.injectJavaScript(injector.buildDataExtractor());
   }, [account, injector, updatePhase, finish]);
 
   const handleMessage = useCallback(
