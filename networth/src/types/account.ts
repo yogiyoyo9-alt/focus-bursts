@@ -26,7 +26,9 @@ export interface CredentialFieldDef {
 }
 
 export interface Institution {
-  id: InstitutionId;
+  // Built-in institutions use the InstitutionId union; custom ones use a
+  // generated `custom_<id>` string — so this is widened to string.
+  id: string;
   name: string;
   shortName: string;
   category: AssetCategory;
@@ -35,23 +37,27 @@ export interface Institution {
   credentialFields: CredentialFieldDef[];
   color: string;
   notes?: string;
+  isCustom?: boolean;
 }
 
 export interface Account {
   id: string;
-  institutionId: InstitutionId;
+  institutionId: string;
   nickname: string;
   credentialKey: string;
   category: AssetCategory;
   lastSyncedAt: string | null;
   lastSyncStatus: 'success' | 'failed' | 'never' | 'partial';
   lastValue?: number;
+  // CSS selector remembered from a tap-to-capture sync, so future syncs can
+  // read the same on-page value automatically.
+  captureSelector?: string;
   isActive: boolean;
   createdAt: string;
 }
 
 export interface EncryptedCredentialPayload {
   accountId: string;
-  institutionId: InstitutionId;
+  institutionId: string;
   fields: Record<string, string>;
 }

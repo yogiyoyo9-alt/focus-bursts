@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Colors, categoryColor } from '@/constants/colors';
 import type { Account } from '@/types/account';
-import { INSTITUTIONS } from '@/constants/institutions';
+import { useInstitutionStore } from '@/store/institutionStore';
 import { formatCurrency, formatRelativeTime } from '@/utils/format';
 
 interface AccountCardProps {
@@ -13,7 +13,7 @@ interface AccountCardProps {
 }
 
 export function AccountCard({ account, onPress, onSync, isSyncing }: AccountCardProps) {
-  const institution = INSTITUTIONS[account.institutionId];
+  const institution = useInstitutionStore((s) => s.getInstitution(account.institutionId));
 
   const statusColor =
     account.lastSyncStatus === 'success'

@@ -1,4 +1,3 @@
-import type { InstitutionId } from '@/types/account';
 import * as zerodhaInjector from './injectors/zerodha';
 import * as growwInjector from './injectors/groww';
 import * as epfoInjector from './injectors/epfo';
@@ -12,7 +11,7 @@ export interface InjectorModule {
   detectLoginSuccess: (url: string) => boolean;
 }
 
-const injectorMap: Partial<Record<InstitutionId, InjectorModule>> = {
+const injectorMap: Record<string, InjectorModule> = {
   zerodha: zerodhaInjector,
   groww: growwInjector,
   epfo: epfoInjector,
@@ -20,6 +19,6 @@ const injectorMap: Partial<Record<InstitutionId, InjectorModule>> = {
   hdfc: hdfcInjector,
 };
 
-export function getInjector(institutionId: InstitutionId): InjectorModule {
+export function getInjector(institutionId: string): InjectorModule {
   return injectorMap[institutionId] ?? genericInjector;
 }

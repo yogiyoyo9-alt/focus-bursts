@@ -53,8 +53,34 @@ export async function initializeDatabase(): Promise<void> {
       FOREIGN KEY(snapshot_group_id) REFERENCES portfolio_snapshots(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS custom_institutions (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      short_name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      login_url TEXT NOT NULL,
+      color TEXT NOT NULL,
+      credential_fields TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_snapshots_captured_at ON portfolio_snapshots(captured_at DESC);
     CREATE INDEX IF NOT EXISTS idx_account_snapshots_account_id ON account_snapshots(account_id);
     CREATE INDEX IF NOT EXISTS idx_account_snapshots_group ON account_snapshots(snapshot_group_id);
   `);
+
+  await runMigrations(database);
+}
+
+// Additive migrations for existing installs. ALTER TABLE ADD COLUMN throws if
+// the column already exists, so each is wrapped and ignored on failure.
+async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
+  const additiveColumns = ['ALTER TABLE accounts ADD COLUMN capture_selector TEXT'];
+  for (const sql of additiveColumns) {
+    try {
+      await database.execAsync(sql);
+    } catch {
+      // Column already exists — safe to ignore.
+    }
+  }
 }

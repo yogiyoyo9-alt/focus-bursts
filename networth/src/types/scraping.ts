@@ -1,5 +1,3 @@
-import type { InstitutionId } from './account';
-
 export type ScrapingPhase =
   | 'idle'
   | 'navigating'
@@ -13,7 +11,7 @@ export type ScrapingPhase =
 export interface ScrapingSession {
   sessionId: string;
   accountId: string;
-  institutionId: InstitutionId;
+  institutionId: string;
   phase: ScrapingPhase;
   startedAt: string;
   completedAt: string | null;
@@ -22,7 +20,7 @@ export interface ScrapingSession {
 
 export interface ScrapingResult {
   accountId: string;
-  institutionId: InstitutionId;
+  institutionId: string;
   success: boolean;
   valueInr: number | null;
   rawData: Record<string, unknown> | null;
@@ -36,6 +34,7 @@ export type WebViewMessage =
   | { type: 'ERROR'; message: string }
   | { type: 'OTP_SCREEN_DETECTED' }
   | { type: 'LOGIN_SUCCESS' }
+  | { type: 'SELECTOR_MISS' }
   | { type: 'PAGE_READY'; url: string };
 
 export function parseWebViewMessage(data: string): WebViewMessage | null {

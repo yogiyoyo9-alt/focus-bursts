@@ -16,6 +16,7 @@ export default function ScrapeScreen() {
   const accounts = useAccountStore((s) => s.accounts);
   const updateSyncStatusWithValue = useAccountStore((s) => s.updateSyncStatusWithValue);
   const updateSyncStatus = useAccountStore((s) => s.updateSyncStatus);
+  const updateCaptureSelector = useAccountStore((s) => s.updateCaptureSelector);
   const loadLatest = usePortfolioStore((s) => s.loadLatest);
   const loadHistory = usePortfolioStore((s) => s.loadHistory);
 
@@ -26,6 +27,12 @@ export default function ScrapeScreen() {
       const now = result.scrapedAt;
       if (result.success && result.valueInr != null) {
         await updateSyncStatusWithValue(result.accountId, 'success', now, result.valueInr);
+        // Remember where the value was on the page (from tap-capture) so future
+        // syncs can read it automatically.
+        const selector = result.rawData?.selector;
+        if (typeof selector === 'string' && selector.length > 0) {
+          await updateCaptureSelector(result.accountId, selector);
+        }
       } else {
         await updateSyncStatus(result.accountId, 'failed', now);
       }
@@ -83,7 +90,7 @@ export default function ScrapeScreen() {
         ]);
       }
     },
-    [account, accounts, updateSyncStatus, updateSyncStatusWithValue, loadLatest, loadHistory, router],
+    [account, accounts, updateSyncStatus, updateSyncStatusWithValue, updateCaptureSelector, loadLatest, loadHistory, router],
   );
 
   if (!account) {

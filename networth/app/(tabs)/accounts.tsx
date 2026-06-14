@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { useAccountStore } from '@/store/accountStore';
 import { AccountCard } from '@/components/accounts/AccountCard';
-import { INSTITUTION_GROUPS, INSTITUTIONS } from '@/constants/institutions';
+import { INSTITUTION_GROUPS } from '@/constants/institutions';
 import type { InstitutionId } from '@/types/account';
 
 export default function AccountsScreen() {
@@ -40,12 +40,23 @@ export default function AccountsScreen() {
     [removeAccount],
   );
 
+  const knownIds = new Set<string>(
+    Object.values(INSTITUTION_GROUPS).flat() as InstitutionId[],
+  );
   const groupedAccounts = Object.entries(INSTITUTION_GROUPS)
     .map(([groupName, institutionIds]) => ({
       groupName,
-      accounts: accounts.filter((a) => (institutionIds as InstitutionId[]).includes(a.institutionId)),
+      accounts: accounts.filter((a) =>
+        (institutionIds as InstitutionId[]).includes(a.institutionId as InstitutionId),
+      ),
     }))
     .filter((g) => g.accounts.length > 0);
+
+  // Custom institutions aren't part of any built-in group — gather them here.
+  const otherAccounts = accounts.filter((a) => !knownIds.has(a.institutionId));
+  if (otherAccounts.length > 0) {
+    groupedAccounts.push({ groupName: 'Custom & Other', accounts: otherAccounts });
+  }
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>

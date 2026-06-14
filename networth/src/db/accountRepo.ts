@@ -10,6 +10,7 @@ interface AccountRow {
   last_synced_at: string | null;
   last_sync_status: string;
   last_value: number | null;
+  capture_selector: string | null;
   is_active: number;
   created_at: string;
 }
@@ -17,13 +18,14 @@ interface AccountRow {
 function rowToAccount(row: AccountRow): Account {
   return {
     id: row.id,
-    institutionId: row.institution_id as Account['institutionId'],
+    institutionId: row.institution_id,
     nickname: row.nickname,
     credentialKey: row.credential_key,
     category: row.category as Account['category'],
     lastSyncedAt: row.last_synced_at,
     lastSyncStatus: row.last_sync_status as Account['lastSyncStatus'],
     lastValue: row.last_value ?? undefined,
+    captureSelector: row.capture_selector ?? undefined,
     isActive: row.is_active === 1,
     createdAt: row.created_at,
   };
@@ -40,8 +42,8 @@ export async function getAllAccounts(): Promise<Account[]> {
 export async function insertAccount(account: Account): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT INTO accounts (id, institution_id, nickname, credential_key, category, last_synced_at, last_sync_status, last_value, is_active, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO accounts (id, institution_id, nickname, credential_key, category, last_synced_at, last_sync_status, last_value, capture_selector, is_active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     account.id,
     account.institutionId,
     account.nickname,
@@ -50,8 +52,21 @@ export async function insertAccount(account: Account): Promise<void> {
     account.lastSyncedAt,
     account.lastSyncStatus,
     account.lastValue ?? null,
+    account.captureSelector ?? null,
     account.isActive ? 1 : 0,
     account.createdAt,
+  );
+}
+
+export async function updateCaptureSelector(
+  accountId: string,
+  selector: string,
+): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'UPDATE accounts SET capture_selector = ? WHERE id = ?',
+    selector,
+    accountId,
   );
 }
 

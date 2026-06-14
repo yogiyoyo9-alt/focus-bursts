@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { genId } from '@/utils/id';
-import type { Account, InstitutionId, AssetCategory, EncryptedCredentialPayload } from '@/types/account';
+import type { Account, AssetCategory, EncryptedCredentialPayload } from '@/types/account';
 import * as accountRepo from '@/db/accountRepo';
 import { saveCredentials, deleteCredentials } from '@/security/credentialStore';
 
@@ -10,13 +10,14 @@ interface AccountState {
   loadAccounts: () => Promise<void>;
   addAccount: (
     params: {
-      institutionId: InstitutionId;
+      institutionId: string;
       nickname: string;
       category: AssetCategory;
     },
     credentials: Record<string, string>,
   ) => Promise<Account>;
   removeAccount: (id: string) => Promise<void>;
+  updateCaptureSelector: (id: string, selector: string) => Promise<void>;
   updateSyncStatus: (
     id: string,
     status: Account['lastSyncStatus'],
@@ -68,6 +69,15 @@ export const useAccountStore = create<AccountState>((set, get) => ({
     await deleteCredentials(id);
     await accountRepo.deleteAccount(id);
     set((state) => ({ accounts: state.accounts.filter((a) => a.id !== id) }));
+  },
+
+  updateCaptureSelector: async (id, selector) => {
+    await accountRepo.updateCaptureSelector(id, selector);
+    set((state) => ({
+      accounts: state.accounts.map((a) =>
+        a.id === id ? { ...a, captureSelector: selector } : a,
+      ),
+    }));
   },
 
   updateSyncStatus: async (id, status, syncedAt) => {

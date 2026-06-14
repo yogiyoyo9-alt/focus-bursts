@@ -1,12 +1,13 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import WebView, { type WebViewNavigation } from 'react-native-webview';
-import type { ScrapingPhase, ScrapingResult, WebViewMessage } from '@/types/scraping';
+import type { ScrapingPhase, ScrapingResult } from '@/types/scraping';
 import { parseWebViewMessage } from '@/types/scraping';
 import type { Account } from '@/types/account';
-import { INSTITUTIONS } from '@/constants/institutions';
+import { useInstitutionStore } from '@/store/institutionStore';
 import { loadCredentials } from '@/security/credentialStore';
 import { getInjector } from '@/scraping/engine';
+import { buildTapCaptureScript, buildSelectorExtractor } from '@/scraping/captureScript';
 import { OTPOverlay } from './OTPOverlay';
 import { Colors } from '@/constants/colors';
 
@@ -19,10 +20,11 @@ interface ScrapingWebViewProps {
 export function ScrapingWebView({ account, onComplete, onPhaseChange }: ScrapingWebViewProps) {
   const webViewRef = useRef<WebView>(null);
   const [phase, setPhase] = useState<ScrapingPhase>('navigating');
+  const [captureArmed, setCaptureArmed] = useState(false);
   const credentialsInjected = useRef(false);
   const completed = useRef(false);
 
-  const institution = INSTITUTIONS[account.institutionId];
+  const institution = useInstitutionStore((s) => s.getInstitution(account.institutionId));
   const injector = getInjector(account.institutionId);
 
   const updatePhase = useCallback(
@@ -43,36 +45,50 @@ export function ScrapingWebView({ account, onComplete, onPhaseChange }: Scraping
     [onComplete, updatePhase],
   );
 
+  const buildResult = useCallback(
+    (success: boolean, valueInr: number | null, rawData: Record<string, unknown> | null, error: string | null): ScrapingResult => ({
+      accountId: account.id,
+      institutionId: account.institutionId,
+      success,
+      valueInr,
+      rawData,
+      error,
+      scrapedAt: new Date().toISOString(),
+    }),
+    [account.id, account.institutionId],
+  );
+
   const handleLoadEnd = useCallback(async () => {
     if (completed.current) return;
 
-    // First page load: inject credentials.
+    // First page load: inject saved credentials.
     if (!credentialsInjected.current) {
       credentialsInjected.current = true;
       updatePhase('filling_credentials');
       const creds = await loadCredentials(account.id);
       if (!creds) {
-        finish({
-          accountId: account.id,
-          institutionId: account.institutionId,
-          success: false,
-          valueInr: null,
-          rawData: null,
-          error: 'Credentials not found',
-          scrapedAt: new Date().toISOString(),
-        });
+        finish(buildResult(false, null, null, 'Credentials not found'));
         return;
       }
-      const script = injector.buildCredentialInjector(creds.fields);
-      webViewRef.current?.injectJavaScript(script);
+      webViewRef.current?.injectJavaScript(injector.buildCredentialInjector(creds.fields));
       return;
     }
 
-    // Subsequent page loads (after the user completes login/OTP): start the
-    // data-extraction poller. It watches the page until the balance appears,
-    // which doubles as login detection and survives SPA navigation.
-    webViewRef.current?.injectJavaScript(injector.buildDataExtractor());
-  }, [account, injector, updatePhase, finish]);
+    // Subsequent page loads (after the user completes login/OTP): try to read
+    // the balance. If we remembered where it is from a previous sync, use that
+    // selector; otherwise run the institution's extractor. Either way the user
+    // can fall back to tapping the value manually.
+    if (account.captureSelector) {
+      webViewRef.current?.injectJavaScript(buildSelectorExtractor(account.captureSelector));
+    } else {
+      webViewRef.current?.injectJavaScript(injector.buildDataExtractor());
+    }
+  }, [account, injector, updatePhase, finish, buildResult]);
+
+  const armCapture = useCallback(() => {
+    setCaptureArmed(true);
+    webViewRef.current?.injectJavaScript(buildTapCaptureScript());
+  }, []);
 
   const handleMessage = useCallback(
     (event: { nativeEvent: { data: string } }) => {
@@ -94,27 +110,24 @@ export function ScrapingWebView({ account, onComplete, onPhaseChange }: Scraping
           break;
 
         case 'DATA_EXTRACTED':
-          finish({
-            accountId: account.id,
-            institutionId: account.institutionId,
-            success: true,
-            valueInr: msg.payload.valueInr,
-            rawData: msg.payload.raw,
-            error: null,
-            scrapedAt: new Date().toISOString(),
-          });
+          setCaptureArmed(false);
+          finish(buildResult(true, msg.payload.valueInr, msg.payload.raw, null));
+          break;
+
+        case 'SELECTOR_MISS':
+          // The remembered spot didn't have a value yet — fall back to the
+          // institution extractor; the user can also tap manually.
+          webViewRef.current?.injectJavaScript(injector.buildDataExtractor());
           break;
 
         case 'ERROR':
-          finish({
-            accountId: account.id,
-            institutionId: account.institutionId,
-            success: false,
-            valueInr: null,
-            rawData: null,
-            error: msg.message,
-            scrapedAt: new Date().toISOString(),
-          });
+          // A failed tap capture shouldn't end the whole session — let the user
+          // retry. Other errors finish the flow.
+          if (captureArmed) {
+            setCaptureArmed(false);
+            return;
+          }
+          finish(buildResult(false, null, null, msg.message));
           break;
 
         case 'PAGE_READY':
@@ -125,7 +138,7 @@ export function ScrapingWebView({ account, onComplete, onPhaseChange }: Scraping
           break;
       }
     },
-    [account, injector, updatePhase, finish, phase],
+    [injector, updatePhase, finish, buildResult, phase, captureArmed],
   );
 
   const handleNavigationStateChange = useCallback(
@@ -157,6 +170,23 @@ export function ScrapingWebView({ account, onComplete, onPhaseChange }: Scraping
         sharedCookiesEnabled
         userAgent="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36"
       />
+
+      <View style={styles.captureBar}>
+        <Text style={styles.captureHint}>
+          {captureArmed
+            ? 'Now tap the balance amount on the page above.'
+            : "Logged in but balance not detected? Tap below, then tap the amount on the page."}
+        </Text>
+        <TouchableOpacity
+          style={[styles.captureBtn, captureArmed && styles.captureBtnArmed]}
+          onPress={armCapture}
+          disabled={captureArmed}
+        >
+          <Text style={styles.captureBtnText}>
+            {captureArmed ? 'Waiting for your tap…' : 'Capture balance manually'}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -168,5 +198,31 @@ const styles = StyleSheet.create({
   },
   webView: {
     flex: 1,
+  },
+  captureBar: {
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    padding: 12,
+    gap: 8,
+  },
+  captureHint: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  captureBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  captureBtnArmed: {
+    backgroundColor: Colors.surfaceAlt,
+  },
+  captureBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

@@ -11,7 +11,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors, categoryColor } from '@/constants/colors';
 import { useAccountStore } from '@/store/accountStore';
-import { INSTITUTIONS } from '@/constants/institutions';
+import { useInstitutionStore } from '@/store/institutionStore';
 import { formatCurrency, formatCurrencyFull, formatRelativeTime } from '@/utils/format';
 import { Card } from '@/components/common/Card';
 import { genId } from '@/utils/id';
@@ -26,6 +26,7 @@ export default function AccountDetailScreen() {
   const loadLatest = usePortfolioStore((s) => s.loadLatest);
 
   const account = accounts.find((a) => a.id === id);
+  const institution = useInstitutionStore((s) => s.getInstitution(account?.institutionId ?? ''));
   const [manualValue, setManualValue] = useState('');
   const [savingManual, setSavingManual] = useState(false);
 
@@ -92,8 +93,6 @@ export default function AccountDetailScreen() {
       </View>
     );
   }
-
-  const institution = INSTITUTIONS[account.institutionId];
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
